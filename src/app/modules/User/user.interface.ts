@@ -1,20 +1,13 @@
 import { Model, Types } from "mongoose";
-
-export const USER_ROLE = {
-    supseradmin: 'superadmin',
-    admin: 'admin',
-    employee: 'employee',
-    hr: 'hr',
-    manager: 'manager',
-}
+import { TActivityStatus, USER_ROLE } from "../Employee/constant";
 
 export type TUser = {
-    id: string;
+    id: Types.ObjectId;
     password: string;
     email: string;
     needsPasswordChange: boolean;
-    role: 'admin' | 'superadmin' | 'employee' | 'hr' | 'manager';
-    status: 'active' | 'blocked' | 'archieved';
+    role: USER_ROLE;
+    status: TActivityStatus;
     isDeleted: boolean;
 };
 

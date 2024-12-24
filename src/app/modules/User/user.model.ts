@@ -2,11 +2,12 @@ import { model, Schema } from "mongoose";
 import { TUser } from "./user.interface";
 import bcrypt from "bcrypt";
 import config from "../../config";
+import { TActivityStatus, USER_ROLE } from "../Employee/constant";
 
 const userSchema = new Schema<TUser>(
     {
         id: {
-            type: String,
+            type: Schema.Types.ObjectId,
             required: true,
         },
         password: {
@@ -23,12 +24,11 @@ const userSchema = new Schema<TUser>(
         },
         role: {
             type: String,
-            enum: ['admin', 'superadmin', 'employee', 'hr', 'manager'],
+            enum: USER_ROLE,
         },
         status: {
             type: String,
-            enum: ['active', 'blocked', 'archieved'],
-            default: 'active',
+            enum: TActivityStatus,
         },
         isDeleted: {
             type: Boolean,
