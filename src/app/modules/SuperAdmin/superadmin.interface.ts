@@ -2,12 +2,7 @@ import { Model, Types } from "mongoose";
 import { TBankDetials, TCompanyDetails, TEmployee, TEmployeePerformance, TLeaveType, TPersonalDetails, TUploadFiles } from "../Employee/employee.interface";
 
 export type TSuperAdmin = {
-    personalInfo: TPersonalDetails;
-    companyDetails: TCompanyDetails;
-    leaveTypes: TLeaveType[];
-    bankDetails: TBankDetials;
-    uploadFiles: TUploadFiles;
-    performance: TEmployeePerformance;
+    employeeId: Types.ObjectId;
     superAdminPrivileges: {
         canCreateSuperAdmin: boolean;
         canCreateAdmins: boolean;
