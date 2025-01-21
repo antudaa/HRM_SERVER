@@ -1,10 +1,12 @@
 import { model, Schema, Types } from "mongoose";
 import { TSuperAdmin, SuperAdminModel } from "./superadmin.interface";
+import { bankDetailsSchema, companyDetailsSchema, employeePerformanceSchema, leaveTypeSchema, personalDetailsSchema, uploadFileSchema } from "../Employee/employee.model";
 import { TEmployee } from "../Employee/employee.interface";
 
 // Schema for superAdminPrivileges
 const superAdminPrivilegesSchema = new Schema(
     {
+        canCreateSuperAdmin: { type: Boolean, required: true, default: false },
         canCreateAdmins: { type: Boolean, required: true, default: false },
         canRemoveAdmins: { type: Boolean, required: true, default: false },
         canManageCompanySettings: { type: Boolean, required: true, default: false },
@@ -16,23 +18,21 @@ const superAdminPrivilegesSchema = new Schema(
 // SuperAdmin Schema
 const superAdminSchema = new Schema<TSuperAdmin, SuperAdminModel>(
     {
-        personalInfo: { type: Schema.Types.Mixed, required: true },
-        companyDetails: { type: Schema.Types.Mixed, required: true },
-        leaveTypes: { type: Schema.Types.Mixed, required: true },
-        bankDetails: { type: Schema.Types.Mixed, required: true },
-        uploadFiles: { type: Schema.Types.Mixed, required: true },
-        performance: { type: Schema.Types.Mixed, required: true },
-        isDeleted: { type: Boolean, default: false },
+        personalInfo: { type: personalDetailsSchema, required: [true, 'Personal Information is required'] },
+        companyDetails: { type: companyDetailsSchema, required: [true, 'Company Details are required'] },
+        leaveTypes: { type: [leaveTypeSchema], required: [true, 'Leave Types are required'] },
+        bankDetails: { type: bankDetailsSchema, required: [true, 'Bank Details are required'] },
+        uploadFiles: { type: uploadFileSchema, required: [true, 'Uploaded Files are required'] },
+        performance: { type: employeePerformanceSchema, required: [true, 'Employee Performance is required'] },
         superAdminPrivileges: { type: superAdminPrivilegesSchema, required: true },
         globalAccess: { type: Boolean, required: true, default: false },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
 // Check if a superadmin exists with the same email
-superAdminSchema.statics.isAccountExistWithSameEmail = async function (
-    email: string
-): Promise<TSuperAdmin | null> {
+superAdminSchema.statics.isAccountExistWithSameEmail = async function (email: string) {
     return await this.findOne({ "personalInfo.officialEmail": email });
 };
 
