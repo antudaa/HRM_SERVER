@@ -1,6 +1,8 @@
 import { Types } from "mongoose";
-import { TLeaveType } from "../modules/LeaveManagement/leaveManagement.interface";
-import { LeaveType } from "../modules/LeaveManagement/leaveManagement.model";
+import { TLeaveType } from "../modules/Leave/leaveManagement.interface";
+import { LeaveType } from "../modules/Leave/leaveManagement.model";
+// import { TLeaveType } from "../modules/LeaveManagement/leaveManagement.interface";
+// import { LeaveType } from "../modules/LeaveManagement/leaveManagement.model";
 
 const seed: Array<Partial<TLeaveType>> = [
   {

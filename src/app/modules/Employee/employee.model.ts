@@ -88,7 +88,7 @@ const companyDetailsSchema = new Schema<TCompanyDetails>(
   { _id: false }
 );
 
-const bankDetailsSchema = new Schema<TBankDetials>(
+export const bankDetailsSchema = new Schema<TBankDetials>(
   {
     accountName: String,
     accountNumber: String,

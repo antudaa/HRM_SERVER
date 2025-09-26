@@ -1,43 +1,68 @@
+// src/app.ts
 import express, { Application, Request, Response } from "express";
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
+import cookieParser from "cookie-parser";
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import notFoundRoute from "./app/middlewares/notFoundRoute";
 import router from "./app/routes";
-import cookieParser from "cookie-parser";
 
 const app: Application = express();
 
-app.use(express.json());
-app.use(cors({
-  origin: (origin, cb) => {
-    const allowed = [
-      "https://hrm-v2-frontend.vercel.app",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ];
-    // Allow all *.vercel.app previews for your frontend:
-    const ok = !origin
-      || allowed.includes(origin)
-      || /\.vercel\.app$/.test(origin);
+// Allow these origins:
+// - production frontend
+// - preview deployments for your project
+// - localhost
+const corsOptions: CorsOptions = {
+  origin(origin, callback) {
+    if (!origin) return callback(null, true); // non-browser or server-to-server
 
-    cb(null, ok);
+    // Match exact prod
+    if (origin === "https://hrm-v2-frontend.vercel.app") return callback(null, true);
+
+    // Match your preview URLs: https://hrm-v2-frontend-<slug>-software-engineering-hatechz.vercel.app
+    try {
+      const host = new URL(origin).host;
+      const preview = /^hrm-v2-frontend-[a-z0-9-]+-software-engineering-hatechz\.vercel\.app$/i;
+      if (preview.test(host)) return callback(null, true);
+    } catch {}
+
+    // Local dev
+    if (
+      origin === "http://localhost:3000" ||
+      origin === "http://localhost:3001" ||
+      origin === "http://localhost:5173" ||
+      origin === "http://localhost:5174"
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
   },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
-}));
+  optionsSuccessStatus: 200,
+};
+
+app.use(express.json());
 app.use(cookieParser());
 
-app.use(`/api/v2`, router);
+// CORS MUST be before routes; also explicitly enable preflight
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
-app.get("/", (req: Request, res: Response) => {
-  res.send(`Wellcome to HRM_V2.0 Server 😎`);
+app.use("/api/v2", router);
+
+// Simple health checks
+app.get("/", (_req: Request, res: Response) => {
+  res.send("HRM_V2.0 Server is up");
+});
+app.get("/api", (_req: Request, res: Response) => {
+  res.json({ ok: true });
 });
 
-// Global Error Handler.
+// Error handlers
 app.use(globalErrorHandler);
-
-// Not Found Router.
 app.use(notFoundRoute);
 
 export default app;

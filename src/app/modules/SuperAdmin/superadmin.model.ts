@@ -1,6 +1,6 @@
 import { model, Schema, Types } from "mongoose";
 import { TSuperAdmin, SuperAdminModel } from "./superadmin.interface";
-import { bankDetailsSchema, companyDetailsSchema, employeePerformanceSchema, leaveTypeSchema, personalDetailsSchema, uploadFileSchema } from "../Employee/employee.model";
+// import { bankDetailsSchema, companyDetailsSchema, employeePerformanceSchema, leaveTypeSchema, personalDetailsSchema, uploadFileSchema } from "../Employee/employee.model";
 import { TEmployee } from "../Employee/employee.interface";
 
 // Schema for superAdminPrivileges
