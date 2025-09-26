@@ -33,7 +33,7 @@ const findLastDepartmentEmpId = async (departmentId: Types.ObjectId) => {
 
 
 export const generateEmployeeID = async (payload: TEmployee) => {
-    const departmentId = payload.companyDetails.department.department;
+    const departmentId = payload.companyDetails.department.id;
 
     // Generate the departmentEmpId
     const lastDepartmentEmpId = await findLastDepartmentEmpId(departmentId);

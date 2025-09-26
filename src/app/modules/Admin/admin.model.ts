@@ -1,6 +1,6 @@
 import { model, Schema, Types } from "mongoose";
-import { TEmployee } from "../Employee/employee.interface";
 import { AdminModel, TAdmin } from "./admin.interface";
+import { TEmployee } from "../Employee/employee.interface";
 
 // Schema for superAdminPrivileges
 const AdminPrivilegesSchema = new Schema(
@@ -16,22 +16,24 @@ const AdminPrivilegesSchema = new Schema(
 // SuperAdmin Schema
 const AdminSchema = new Schema<TAdmin, AdminModel>(
     {
-        personalInfo: { type: Schema.Types.Mixed, required: true },
-        companyDetails: { type: Schema.Types.Mixed, required: true },
-        leaveTypes: { type: Schema.Types.Mixed, required: true },
-        bankDetails: { type: Schema.Types.Mixed, required: true },
-        uploadFiles: { type: Schema.Types.Mixed, required: true },
-        performance: { type: Schema.Types.Mixed, required: true },
-        isDeleted: { type: Boolean, default: false },
+        employeeId: { type: Schema.ObjectId, required: false, ref: "Employee" },
         adminPrivileges: { type: AdminPrivilegesSchema, required: true },
         managedDepartments: {
             type: [Schema.Types.ObjectId],
             required: false,
             ref: 'Department'
-        }
+        },
+        isDeleted: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
+
+export type TAdminPayload = TEmployee & {
+    _id?: Types.ObjectId;
+    adminPrivileges: TAdmin["adminPrivileges"];
+    manageDepartment?: Types.ObjectId[];
+
+}
 
 // Check if a superadmin exists with the same email
 AdminSchema.statics.isAccountExistWithSameEmail = async function (
@@ -46,15 +48,6 @@ AdminSchema.statics.isSuperAdminBlocked = async function (
 ): Promise<boolean> {
     const superAdmin = await this.findById(id);
     return superAdmin?.isDeleted || false;
-};
-
-// Create a new admin
-AdminSchema.statics.createEmployee = async function (
-    employeeData: TEmployee
-): Promise<TEmployee> {
-    const newAdmin = new this(employeeData);
-    await newAdmin.save();
-    return newAdmin;
 };
 
 // Remove an admin or demote them to a regular employee
@@ -90,4 +83,4 @@ AdminSchema.statics.getAllHRMReports = async function (): Promise<any[]> {
 };
 
 // Export the model
-export const SuperAdmin = model<TAdmin, AdminModel>("Admin", AdminSchema);
+export const Admin = model<TAdmin, AdminModel>("Admin", AdminSchema);

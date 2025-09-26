@@ -6,11 +6,11 @@ export enum JobType {
 };
 
 export enum USER_ROLE {
-    SuperAdmin = "SuperAdmin",
-    Admin = "Admin",
-    Employee = "Employee",
-    HR = "HR",
-    Manager = "Manager",
+    SuperAdmin = "superadmin",
+    Admin = "admin",
+    Employee = "employee",
+    HR = "hr",
+    Manager = "manager",
 }
 
 export enum TActivityStatus {

@@ -1,5 +1,5 @@
 import { Model, Types } from "mongoose";
-import { TBankDetials, TCompanyDetails, TEmployee, TEmployeePerformance, TLeaveType, TPersonalDetails, TUploadFiles } from "../Employee/employee.interface";
+import { TEmployee } from "../Employee/employee.interface";
 
 export type TSuperAdmin = {
     employeeId: Types.ObjectId;

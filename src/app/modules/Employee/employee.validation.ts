@@ -1,39 +1,33 @@
 import { z } from "zod";
 import { Types } from "mongoose";
-import WorkShift from "../WorkShift/workShift.model";
-
-// Zod Schema for TExperiance
-export const experienceSchema = z.object({
-    companyName: z.string({
-        required_error: 'Company name is required',
-        invalid_type_error: 'Company name must be a string',
-    }),
-    monthOfExperience: z.number({
-        required_error: 'Month of experience is required',
-        invalid_type_error: 'Month of experience must be a number',
-    }),
-});
 
 // Zod Schema for TUploadFiles
 export const uploadFileSchema = z.object({
-    resume: z.string({
-        required_error: 'Resume is required',
-        invalid_type_error: 'Resume must be a string',
-    }),
-    idProof: z.string({
-        required_error: 'ID proof is required',
-        invalid_type_error: 'ID proof must be a string',
-    }),
-    offerLetter: z.string({
-        required_error: 'Offer letter is required',
-        invalid_type_error: 'Offer letter must be a string',
-    }),
-    agreementLetter: z.string().optional(),
-    noc: z.string().optional(),
-    experienceDetails: z.array(experienceSchema, {
-        required_error: 'Experience details are required',
-        invalid_type_error: 'Experience details must be an array',
-    }),
+    resume: z
+        .any()
+        .refine((file) => file instanceof File || file === undefined || file === null, {
+            message: "Resume must be a file"
+        }).optional(),
+    idProof: z
+        .any()
+        .refine((file) => file instanceof File || file === undefined || file === null, {
+            message: "ID proof must be a file"
+        }).optional(),
+    offerLetter: z
+        .any()
+        .refine((file) => file instanceof File || file === undefined || file === null, {
+            message: "Offer letter must be a file"
+        }).optional(),
+    agreementLetter: z
+        .any()
+        .refine(
+            (file) => file instanceof File || file === undefined || file === null,
+            { message: "Agreement letter must be a file" }).optional(),
+    noc: z
+        .any()
+        .refine(
+            (file) => file instanceof File || file === undefined || file === null,
+            { message: "NOC must be a file" }).optional(),
 });
 
 // Zod Schema for TPersonalDetils
@@ -93,58 +87,74 @@ export const personalDetailsSchema = z.object({
         required_error: 'Permanent address is required',
         invalid_type_error: 'Permanent address must be a string',
     }),
-    profileImage: z.string({
-        required_error: 'Profile image is required',
-        invalid_type_error: 'Profile image must be a string',
-    }),
-    signature: z.string({
-        required_error: 'Signature is required',
-        invalid_type_error: 'Signature must be a string',
-    }),
+    profileImage: z
+        .any()
+        .refine(
+            (file) => file instanceof File || file === undefined || file === null,
+            { message: "Profile image must be a file" }).optional(),
+    signature: z
+        .any()
+        .refine(
+            (file) => file instanceof File || file === undefined || file === null,
+            { message: "Signature must be a file", }).optional(),
 });
 
 // Zod Schema for TCompanyDetails
 export const companyDetailsSchema = z.object({
-    employeeId: z.string({
-        required_error: 'Employee ID is required',
-        invalid_type_error: 'Employee ID must be a string',
-    }),
-    fingerprintAttendanceId: z.string({
-        required_error: "Fingerprint Attendance ID is required",
-        invalid_type_error: "Fingerprint Attendance ID must be a string",
-    }).default(""),
+    employeeId: z.string().optional(),
+
     department: z.object({
-        department: z.string().refine(val => Types.ObjectId.isValid(val), {
+        id: z.string().refine(val => Types.ObjectId.isValid(val), {
             message: 'Department ID must be a valid ObjectId',
         }).transform(val => new Types.ObjectId(val)),
-        departmentEmpId: z.string({
-            required_error: 'Department Employee ID is required',
-            invalid_type_error: 'Department Employee ID must be a string',
-        }),
+        departmentEmpId: z.string().optional(),
     }),
-    designation: z.string().refine(val => Types.ObjectId.isValid(val), {
-        message: 'Designation ID must be a valid ObjectId',
-    }).transform(val => new Types.ObjectId(val)),
-    dateOfJoining: z.date({
-        required_error: 'Date of joining is required',
-        invalid_type_error: 'Date of joining must be a valid date',
+
+    designation: z.object({
+        id: z.string().refine(val => Types.ObjectId.isValid(val), {
+            message: 'Designation ID must be a valid ObjectId',
+        }).transform(val => new Types.ObjectId(val)),
+        designationEmpId: z.string().optional(),
     }),
-    resignationDate: z.date().optional(),
-    workShift: z.string().refine((val) => Types.ObjectId.isValid(val), {
-        message: "Work Shift ID must be a valid ObjectId",
-    }).transform((val) => new Types.ObjectId(val)),
+
+    officialEmail: z.string({
+        required_error: "Official email is required",
+    }).email("Invalid email format"),
+
+    fingerprintAttendanceId: z.string().default(""),
+
+    dateOfJoining: z.coerce.date({
+        required_error: "Date of joining is required",
+    }),
+
+    resignationDate: z.union([
+        z.date(),
+        z.literal("currentlyworking"),
+        z.undefined(),
+    ]).optional(),
+
+    workShifts: z.array(
+        z.string().refine(val => Types.ObjectId.isValid(val), {
+            message: "Each work shift ID must be a valid ObjectId",
+        }).transform(val => new Types.ObjectId(val))
+    ).optional(),
+
     runningWorkShift: z.string({
-        required_error: 'Running work shift is required',
-        invalid_type_error: 'Running work shift must be a string',
+        required_error: "Running work shift is required",
+    }).refine(val => Types.ObjectId.isValid(val), {
+        message: "Running work shift must be a valid ObjectId",
+    }).transform(val => new Types.ObjectId(val)),
+
+    isProbationaryPeriod: z.boolean({
+        required_error: "Probationary status is required",
+    }).default(false),
+
+    jobType: z.enum(["fullTime", "partTime", "contractual"], {
+        required_error: "Job type is required",
     }),
-    isProbationaryPeriod: z.boolean().default(false),
-    jobType: z.enum(['fullTime', 'partTime', 'contractual'], {
-        required_error: 'Job type is required',
-        invalid_type_error: 'Job type must be one of fullTime, partTime, or contractual',
-    }),
-    workMode: z.enum(['onsite', 'remote', 'hybrid'], {
-        required_error: 'Work mode is required',
-        invalid_type_error: 'Work mode must be one of onsite, remote, or hybrid',
+
+    workMode: z.enum(["onsite", "remote", "hybrid"], {
+        required_error: "Work mode is required",
     }),
 });
 
@@ -154,7 +164,7 @@ export const leaveTypeSchema = z.object({
         required_error: 'Leave type name is required',
         invalid_type_error: 'Leave type name must be a string',
     }),
-    initialNumberOfLeave: z.number({
+    initialNumberOfLeaves: z.number({
         required_error: 'Number of leaves is required',
         invalid_type_error: 'Number of leaves must be a number',
     }),

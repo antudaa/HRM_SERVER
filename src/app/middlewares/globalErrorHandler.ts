@@ -9,7 +9,6 @@ import handleDuplicateError from "../Errors/handleDuplicateError";
 import AppError from "../Errors/AppError";
 
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  //setting default values
   let statusCode = 500;
   let message = "Something went wrong!";
   let errorSources: TErrorSources = [
@@ -45,7 +44,7 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
     errorSources = [
       {
         path: "",
-        message: err?.message,
+        message: err?.message ?? message,
       },
     ];
   } else if (err instanceof Error) {
@@ -53,7 +52,7 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
     errorSources = [
       {
         path: "",
-        message: err?.message,
+        message: err?.message ?? message,
       },
     ];
   }
@@ -65,7 +64,6 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
     errorSources,
     stack: config.node_env === "development" ? err?.stack : null,
   });
-  0;
 };
 
 export default globalErrorHandler;

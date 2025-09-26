@@ -18,12 +18,7 @@ const superAdminPrivilegesSchema = new Schema(
 // SuperAdmin Schema
 const superAdminSchema = new Schema<TSuperAdmin, SuperAdminModel>(
     {
-        personalInfo: { type: personalDetailsSchema, required: [true, 'Personal Information is required'] },
-        companyDetails: { type: companyDetailsSchema, required: [true, 'Company Details are required'] },
-        leaveTypes: { type: [leaveTypeSchema], required: [true, 'Leave Types are required'] },
-        bankDetails: { type: bankDetailsSchema, required: [true, 'Bank Details are required'] },
-        uploadFiles: { type: uploadFileSchema, required: [true, 'Uploaded Files are required'] },
-        performance: { type: employeePerformanceSchema, required: [true, 'Employee Performance is required'] },
+        employeeId: { type: Schema.ObjectId, required: true, ref: "Employee" },
         superAdminPrivileges: { type: superAdminPrivilegesSchema, required: true },
         globalAccess: { type: Boolean, required: true, default: false },
         isDeleted: { type: Boolean, default: false },
@@ -31,6 +26,12 @@ const superAdminSchema = new Schema<TSuperAdmin, SuperAdminModel>(
     { timestamps: true }
 );
 
+export type TSuperAdminPayload = TEmployee & {
+    _id?: Types.ObjectId;
+    superAdminPrivileges: TSuperAdmin["superAdminPrivileges"];
+    globalAccess: boolean;
+}
+ 
 // Check if a superadmin exists with the same email
 superAdminSchema.statics.isAccountExistWithSameEmail = async function (email: string) {
     return await this.findOne({ "personalInfo.officialEmail": email });
@@ -42,15 +43,6 @@ superAdminSchema.statics.isSuperAdminBlocked = async function (
 ): Promise<boolean> {
     const superAdmin = await this.findById(id);
     return superAdmin?.isDeleted || false;
-};
-
-// Create a new admin
-superAdminSchema.statics.createEmployee = async function (
-    employeeData: TEmployee
-): Promise<TEmployee> {
-    const newAdmin = new this(employeeData);
-    await newAdmin.save();
-    return newAdmin;
 };
 
 // Remove an admin or demote them to a regular employee

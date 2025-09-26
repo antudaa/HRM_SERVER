@@ -1,13 +1,15 @@
 import { Model, Types } from "mongoose";
 import { TEmployee } from "../Employee/employee.interface";
 
-export type TAdmin = TEmployee & {
+export type TAdmin = {
+    employeeId: Types.ObjectId;
     adminPrivileges: {
         canManageEmployees: boolean;
         canAccessSensitiveData: boolean;
         canModifyRoles: boolean;
     };
     managedDepartments: Types.ObjectId[];
+    isDeleted: boolean;
 };
 
 export interface AdminModel extends Model<TAdmin> {
