@@ -4,15 +4,32 @@ import sendResponse from "../../utils/sendResponse";
 import { AttendanceServices } from "./attendance.service";
 import { fetchFingerprintAttendances } from "../../utils/fingerprintmachineconfig";
 import AppError from "../../Errors/AppError";
-import { Employee } from "../Employee/employee.model";
 import { Holiday } from "../Holiday/holiday.model";
-import { transformAttendanceData } from "../../utils/attendance";
-import { AttendanceData } from "./attendance.model";
-import type { TApprovedLeave, THoliday, TEmployeeLite } from "../../utils/attendance";
-import { Types } from "mongoose";
+import { Employee } from "../Employee/employee.model";
 import { Application } from "../Application/application.model";
+import { AttendanceData } from "./attendance.model";
+import { transformAttendanceData } from "../../utils/attendance";
+import type { TApprovedLeave } from "../../utils/attendance";
+import { Types } from "mongoose";
 
-/** preview */
+type PopulatedWorkShift = {
+  shiftStarts?: string;
+  shiftEnds?: string;
+  shiftStartsDate?: Date | string;
+  shiftEndsDate?: Date | string;
+};
+
+const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+const asWorkShift = (v: unknown): PopulatedWorkShift => {
+  const maybe = v as any;
+  const isObj = v && typeof v === "object";
+  const isOid = isObj && (maybe instanceof Types.ObjectId || typeof maybe?.toHexString === "function");
+  return isObj && !isOid ? (maybe as PopulatedWorkShift) : {};
+};
+
+const isYMD = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+const toDate = (ymd: string) => new Date(`${ymd}T00:00:00Z`);
+
 export const downloadFingerprintAttendance = async (_req: Request, res: Response) => {
   try {
     const attendances = await fetchFingerprintAttendances();
@@ -25,12 +42,7 @@ export const downloadFingerprintAttendance = async (_req: Request, res: Response
 export const pushAttendanceDataIntoDb = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await AttendanceServices.pushAttendanceData();
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: "Attendance data synced successfully.",
-      data: result,
-    });
+    sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Attendance data synced successfully.", data: result });
   } catch (error: any) {
     next(new AppError(error?.statusCode || httpStatus.INTERNAL_SERVER_ERROR, error?.message || "Failed to fetch/transform/persist attendance data"));
   }
@@ -38,13 +50,45 @@ export const pushAttendanceDataIntoDb = async (_req: Request, res: Response, nex
 
 const getDayAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const date = (req.query.date as string) ?? "";
+    const date = String(req.query.date || "");
+    const autofill = String(req.query.autofill || "").toLowerCase() === "true";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return sendResponse(res, { statusCode: httpStatus.BAD_REQUEST, success: false, message: "Query param 'date' must be YYYY-MM-DD" });
+      return sendResponse(res, { statusCode: 400, success: false, message: "Query param 'date' must be YYYY-MM-DD" });
     }
-    const rows = await AttendanceServices.getDayAttendance(date);
-    sendResponse(res, { statusCode: httpStatus.OK, success: true, message: `Attendance for ${date}`, data: rows });
+    const rows = await AttendanceServices.getDayAttendance(date, { autofill });
+    sendResponse(res, { statusCode: 200, success: true, message: `Attendance for ${date}`, data: rows });
   } catch (e) { next(e); }
+};
+
+const getDaysAttendanceRange = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const start = String(req.query.start || "");
+    const end = String(req.query.end || "");
+    const autofill = String(req.query.autofill || "").toLowerCase() === "true";
+
+    if (!isYMD(start) || !isYMD(end)) {
+      return sendResponse(res, { statusCode: 400, success: false, message: "start and end must be YYYY-MM-DD" });
+    }
+    if (toDate(start) > toDate(end)) {
+      return sendResponse(res, { statusCode: 400, success: false, message: "start must be <= end" });
+    }
+
+    // hard cap to prevent very large requests (e.g., > 62 days)
+    const diffDays = Math.floor((toDate(end).getTime() - toDate(start).getTime()) / 86400000) + 1;
+    if (diffDays > 62) {
+      return sendResponse(res, { statusCode: 400, success: false, message: "Range too large; max 62 days" });
+    }
+
+    const data = await AttendanceServices.getDaysAttendanceRange(start, end, { autofill });
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: `Attendance from ${start} to ${end}`,
+      data,
+    });
+  } catch (e) {
+    next(e);
+  }
 };
 
 const getEmployeeLast7 = async (req: Request, res: Response, next: NextFunction) => {
@@ -52,7 +96,9 @@ const getEmployeeLast7 = async (req: Request, res: Response, next: NextFunction)
     const { empId } = req.params;
     const data = await AttendanceServices.getEmployeeLast7Days(empId);
     sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Last 7 days attendance", data });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 const getEmployeeRange = async (req: Request, res: Response, next: NextFunction) => {
@@ -65,7 +111,9 @@ const getEmployeeRange = async (req: Request, res: Response, next: NextFunction)
     }
     const data = await AttendanceServices.getEmployeeByRange(empId, start, end);
     sendResponse(res, { statusCode: httpStatus.OK, success: true, message: `Attendance from ${start} to ${end}`, data });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 const getEmployeeLastMonth = async (req: Request, res: Response, next: NextFunction) => {
@@ -73,7 +121,9 @@ const getEmployeeLastMonth = async (req: Request, res: Response, next: NextFunct
     const { empId } = req.params;
     const data = await AttendanceServices.getEmployeeLastMonth(empId);
     sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Last month attendance", data });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 const getCurrentMonthLatesAll = async (req: Request, res: Response, next: NextFunction) => {
@@ -92,14 +142,26 @@ const getCurrentMonthLatesAll = async (req: Request, res: Response, next: NextFu
       return sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Current month total late minutes per employee", data });
     }
 
-    // use model static directly for detailed variant
     const sortDir = sort === "asc" ? 1 : -1;
     const data = await AttendanceData.getMonthlyLateMinutesForAllDetailed({
-      year, month, minLateMinutes: minLate, departmentId, sort: sortDir as 1 | -1, page, limit,
+      year,
+      month,
+      minLateMinutes: minLate,
+      departmentId,
+      sort: sortDir as 1 | -1,
+      page,
+      limit,
     });
 
-    sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Current month total late minutes per employee (detailed)", data });
-  } catch (e) { next(e); }
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Current month total late minutes per employee (detailed)",
+      data,
+    });
+  } catch (e) {
+    next(e);
+  }
 };
 
 const getEmployeeMonthlyLateTrend = async (req: Request, res: Response, next: NextFunction) => {
@@ -107,10 +169,11 @@ const getEmployeeMonthlyLateTrend = async (req: Request, res: Response, next: Ne
     const { empId } = req.params;
     const data = await AttendanceServices.getEmployeeMonthlyLateTrend(empId);
     sendResponse(res, { statusCode: httpStatus.OK, success: true, message: "Monthly late trend", data });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
-// helper to align with service’s buildDaySet (kept if you need to do direct ops here)
 const buildDaySet = (rec: any) => {
   const now = new Date();
   return {
@@ -136,7 +199,6 @@ const buildDaySet = (rec: any) => {
   };
 };
 
-/** POST /attendance/rebuild?start=YYYY-MM-DD&end=YYYY-MM-DD  */
 const rebuildAttendanceByRange = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const start = (req.query.start as string) ?? "";
@@ -153,36 +215,38 @@ const rebuildAttendanceByRange = async (req: Request, res: Response, next: NextF
         })
       : [];
 
-    // employees with runningWorkShift populated (IMPORTANT)
     const empDocs = await Employee.find(
-  { "companyDetails.fingerprintAttendanceId": { $exists: true, $ne: "" } },
-  {
-    "personalInfo.name.fullName": 1,
-    "companyDetails.fingerprintAttendanceId": 1,
-    "companyDetails.runningWorkShift": 1,
-  }
-)
-  .populate("companyDetails.runningWorkShift", "shiftStarts shiftEnds shiftStartsDate shiftEndsDate")
-  .lean();
+      { "companyDetails.fingerprintAttendanceId": { $exists: true, $ne: "" } },
+      {
+        "personalInfo.name.fullName": 1,
+        "companyDetails.fingerprintAttendanceId": 1,
+        "companyDetails.runningWorkShift": 1,
+      }
+    )
+      .populate({
+        path: "companyDetails.runningWorkShift",
+        select: "shiftStarts shiftEnds shiftStartsDate shiftEndsDate",
+        model: "WorkShift",
+      })
+      .lean();
 
-const employees: TEmployeeLite[] = empDocs.map((e: any) => {
-  const rs = e?.companyDetails?.runningWorkShift || {};
-  return {
-    _id: e._id,
-    personalInfo: { name: { fullName: e?.personalInfo?.name?.fullName || "" } },
-    companyDetails: {
-      fingerprintAttendanceId: e?.companyDetails?.fingerprintAttendanceId || "",
-      runningWorkShift: {
-        startTime: typeof rs?.shiftStarts === "string" ? rs.shiftStarts : "09:00",
-        endTime: typeof rs?.shiftEnds === "string" ? rs.shiftEnds : "18:00",
-        startDate: rs?.shiftStartsDate ? new Date(rs.shiftStartsDate).toISOString().slice(0, 10) : undefined,
-        endDate: rs?.shiftEndsDate ? new Date(rs.shiftEndsDate).toISOString().slice(0, 10) : undefined,
-      },
-    },
-  };
-});
+    const employees = empDocs.map((e: any) => {
+      const rs = asWorkShift(e?.companyDetails?.runningWorkShift);
+      return {
+        _id: e._id,
+        personalInfo: { name: { fullName: e?.personalInfo?.name?.fullName || "" } },
+        companyDetails: {
+          fingerprintAttendanceId: e?.companyDetails?.fingerprintAttendanceId || "",
+          runningWorkShift: {
+            startTime: rs.shiftStarts ?? "09:00",
+            endTime: rs.shiftEnds ?? "18:00",
+            startDate: rs?.shiftStartsDate ? toISODate(new Date(rs.shiftStartsDate)) : undefined,
+            endDate: rs?.shiftEndsDate ? toISODate(new Date(rs.shiftEndsDate)) : undefined,
+          },
+        },
+      };
+    });
 
-    // leaves window = start..end
     const apps = await Application.find({
       applicationType: "leave",
       currentStatus: "approved",
@@ -190,13 +254,15 @@ const employees: TEmployeeLite[] = empDocs.map((e: any) => {
       isCancelled: { $ne: true },
       fromDate: { $lte: new Date(end + "T23:59:59.999Z") },
       toDate: { $gte: new Date(start + "T00:00:00.000Z") },
-    }).select("applicantId fromDate toDate leaveDetails").lean();
+    })
+      .select("applicantId fromDate toDate leaveDetails")
+      .lean();
 
     const toISO = (d: Date) => d.toISOString().slice(0, 10);
     const approvedLeaves: TApprovedLeave[] = [];
     for (const a of apps) {
       const employeeId = a.applicantId as unknown as Types.ObjectId;
-      const mode = a?.leaveDetails?.leaveMode as ("single" | "multiple" | "halfday" | undefined);
+      const mode = a?.leaveDetails?.leaveMode as "single" | "multiple" | "halfday" | undefined;
       const effDates: Date[] = Array.isArray(a?.leaveDetails?.effectiveDates) ? a.leaveDetails!.effectiveDates! : [];
       const fromISO = a.fromDate ? toISO(new Date(a.fromDate)) : undefined;
       const toISO_ = a.toDate ? toISO(new Date(a.toDate)) : fromISO;
@@ -221,7 +287,7 @@ const employees: TEmployeeLite[] = empDocs.map((e: any) => {
     const holidays = await Holiday.find({
       startDate: { $lte: end },
       $or: [{ endDate: { $gte: start } }, { endDate: { $exists: false } }],
-    }).lean<THoliday[]>();
+    }).lean();
 
     const docs = await transformAttendanceData(filtered, { employees, approvedLeaves, holidays });
 
@@ -247,17 +313,14 @@ const employees: TEmployeeLite[] = empDocs.map((e: any) => {
         });
         ops.push({
           updateOne: {
-            filter: {
-              "employeeInfo.empId": emp.employeeInfo.empId,
-              attendanceInfo: { $not: { $elemMatch: { date: rec.date } } },
-            },
+            filter: { "employeeInfo.empId": emp.employeeInfo.empId, attendanceInfo: { $not: { $elemMatch: { date: rec.date } } } },
             update: { $push: { attendanceInfo: rec } },
             upsert: false,
           },
         });
       }
     }
-    if (ops.length) await AttendanceData.bulkWrite(ops, { ordered: false });
+    if (ops.length) await (AttendanceData as any).bulkWrite(ops, { ordered: false });
 
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -265,13 +328,16 @@ const employees: TEmployeeLite[] = empDocs.map((e: any) => {
       message: `Rebuilt attendance from ${start} to ${end}`,
       data: { employees: docs.length },
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 export const AttendanceControllers = {
   downloadFingerprintAttendance,
   pushAttendanceDataIntoDb,
   getDayAttendance,
+  getDaysAttendanceRange,
   getEmployeeLast7,
   getEmployeeRange,
   getEmployeeLastMonth,

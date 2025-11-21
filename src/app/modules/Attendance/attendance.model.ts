@@ -1,4 +1,3 @@
-// src/app/modules/Attendance/attendance.model.ts
 import { model, Schema, Types } from "mongoose";
 import {
   AttendanceDataModel,
@@ -9,7 +8,6 @@ import {
   TDayWiseRow,
 } from "./attendance.interface";
 
-/* ------------------------- Raw fingerprint rows ------------------------- */
 const downloadAttendanceRawDataSchema = new Schema<
   TDownloadAttendanceRawData,
   DownloadAttendanceRawDataModel
@@ -20,7 +18,6 @@ const downloadAttendanceRawDataSchema = new Schema<
   ip: { type: String },
 });
 
-/* -------------------------- Attendance subdoc -------------------------- */
 const attendanceInfoSchema = new Schema<TAttendanceRecord>(
   {
     date: { type: String, required: true },
@@ -30,7 +27,7 @@ const attendanceInfoSchema = new Schema<TAttendanceRecord>(
     isHoliday: { type: Boolean, required: true },
     inLeave: { type: Boolean, required: true, default: false },
     leaveType: { type: String, enum: ["fullday", "halfday", "shortleave", "n/a"], default: "n/a" },
-    workHour: { type: Number, required: true, default: 0 }, // minutes
+    workHour: { type: Number, required: true, default: 0 },
     attendanceType: { type: String, enum: ["onsite", "adjusted", "remote", "leave", "n/a"], default: "n/a" },
     shiftStartTime: { type: String, required: true },
     shiftEndTime: { type: String, required: true },
@@ -45,7 +42,6 @@ const attendanceInfoSchema = new Schema<TAttendanceRecord>(
   { _id: false, timestamps: true }
 );
 
-/* --------------------------- Employee document -------------------------- */
 const attendanceDataSchema = new Schema<TEmployeeAttendance, AttendanceDataModel>(
   {
     employeeInfo: {
@@ -59,15 +55,9 @@ const attendanceDataSchema = new Schema<TEmployeeAttendance, AttendanceDataModel
   { timestamps: true }
 );
 
-/* ------------------------------- Indexes -------------------------------- */
 attendanceDataSchema.index({ "employeeInfo.empId": 1 }, { name: "idx_att_empId" });
 attendanceDataSchema.index({ "attendanceInfo.date": 1 }, { name: "idx_att_date" });
-attendanceDataSchema.index(
-  { "employeeInfo.empId": 1, "attendanceInfo.date": 1 },
-  { name: "idx_att_emp_date" }
-);
-
-/* ------------------------------- Statics -------------------------------- */
+attendanceDataSchema.index({ "employeeInfo.empId": 1, "attendanceInfo.date": 1 }, { name: "idx_att_emp_date" });
 
 attendanceDataSchema.statics.isAttendanceDataExistsForThisDate = function (date: string) {
   return this.findOne({ "attendanceInfo.date": date });
@@ -83,81 +73,37 @@ attendanceDataSchema.statics.getByEmployeeAndRange = async function (
     { $match: { "employeeInfo.empId": _id } },
     { $unwind: "$attendanceInfo" },
     { $match: { "attendanceInfo.date": { $gte: start, $lte: end } } },
-    {
-      $group: {
-        _id: "$employeeInfo.empId",
-        attendanceInfo: { $push: "$attendanceInfo" },
-      },
-    },
+    { $group: { _id: "$employeeInfo.empId", attendanceInfo: { $push: "$attendanceInfo" } } },
   ]);
   return rows[0]?.attendanceInfo ?? [];
 };
 
-/** UPDATED: include employeeCode (EMP0005) and designationName in day rows */
 attendanceDataSchema.statics.getByDay = async function (date: string) {
   const rows: TDayWiseRow[] = await this.aggregate([
     { $unwind: "$attendanceInfo" },
     { $match: { "attendanceInfo.date": date } },
-
-    // join employee for code + actual name
-    {
-      $lookup: {
-        from: "employees",
-        localField: "employeeInfo.empId",
-        foreignField: "_id",
-        as: "emp",
-      },
-    },
+    { $lookup: { from: "employees", localField: "employeeInfo.empId", foreignField: "_id", as: "emp" } },
     { $unwind: { path: "$emp", preserveNullAndEmptyArrays: true } },
-
-    // optional: bring in designation name if not embedded on employee doc
-    {
-      $lookup: {
-        from: "designations",
-        localField: "emp.companyDetails.designation.id",
-        foreignField: "_id",
-        as: "desig",
-      },
-    },
+    { $lookup: { from: "designations", localField: "emp.companyDetails.designation.id", foreignField: "_id", as: "desig" } },
     { $unwind: { path: "$desig", preserveNullAndEmptyArrays: true } },
-
-    // shape
     {
       $project: {
         _id: 0,
         employeeId: "$employeeInfo.empId",
-        // prefer full name from employee doc; fallback to what is stored in attendance doc
-        name: {
-          $ifNull: ["$emp.personalInfo.name.fullName", "$employeeInfo.name"],
-        },
+        name: { $ifNull: ["$emp.personalInfo.name.fullName", "$employeeInfo.name"] },
         fingerprintAttendanceId: "$fingerprintAttendanceId",
         record: "$attendanceInfo",
-
-        // NEW fields for frontend
-        employeeCode: "$emp.companyDetails.employeeId", // e.g. EMP0005
-        // If you already store designation name on employee doc, prefer it; else fallback to $desig
-        designationName: {
-          $ifNull: ["$emp.companyDetails.designation.name", "$desig.name"],
-        },
+        employeeCode: "$emp.companyDetails.employeeId",
+        designationName: { $ifNull: ["$emp.companyDetails.designation.name", "$desig.name"] },
+        employee: { companyDetails: { designation: { name: { $ifNull: ["$emp.companyDetails.designation.name", "$desig.name"] } } } },
       },
     },
-
-    // sort by employeeCode if present, else by name
-    {
-      $sort: {
-        employeeCode: 1,
-        name: 1,
-      },
-    },
+    { $sort: { employeeCode: 1, name: 1 } },
   ]);
-
   return rows;
 };
 
-attendanceDataSchema.statics.getLastNDays = async function (
-  empId: string | Types.ObjectId,
-  days: number
-) {
+attendanceDataSchema.statics.getLastNDays = async function (empId: string | Types.ObjectId, days: number) {
   const end = new Date();
   const start = new Date();
   start.setDate(end.getDate() - (days - 1));
@@ -174,16 +120,11 @@ attendanceDataSchema.statics.getLastMonth = async function (empId: string | Type
 };
 
 attendanceDataSchema.statics.getMonthlyLateMinutesForAll = function () {
-  const ym = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  const ym = new Date().toISOString().slice(0, 7);
   return this.aggregate([
     { $unwind: "$attendanceInfo" },
     { $match: { "attendanceInfo.date": { $regex: `^${ym}` } } },
-    {
-      $group: {
-        _id: "$employeeInfo.empId",
-        totalLateMinutes: { $sum: "$attendanceInfo.lateby" },
-      },
-    },
+    { $group: { _id: "$employeeInfo.empId", totalLateMinutes: { $sum: "$attendanceInfo.lateby" } } },
   ]);
 };
 
@@ -198,15 +139,13 @@ attendanceDataSchema.statics.getMonthlyLateMinutesForAllDetailed = function (opt
 } = {}) {
   const now = new Date();
   const year = opts.year ?? now.getFullYear();
-  const month = opts.month ?? (now.getMonth() + 1);
+  const month = opts.month ?? now.getMonth() + 1;
   const ym = `${year}-${String(month).padStart(2, "0")}`;
-
   const minLate = Math.max(0, opts.minLateMinutes ?? 0);
   const sortDir: 1 | -1 = opts.sort ?? -1;
   const page = Math.max(1, opts.page ?? 1);
   const limit = Math.max(1, Math.min(200, opts.limit ?? 50));
   const skip = (page - 1) * limit;
-
   const deptId = opts.departmentId ? new Types.ObjectId(String(opts.departmentId)) : null;
 
   const pipeline: any[] = [
@@ -240,7 +179,6 @@ attendanceDataSchema.statics.getMonthlyLateMinutesForAllDetailed = function (opt
     { $skip: skip },
     { $limit: limit },
   ];
-
   return this.aggregate(pipeline);
 };
 
@@ -249,9 +187,7 @@ attendanceDataSchema.statics.getLateViolations = async function (threshold: numb
   return monthly.filter((m: any) => (m?.totalLateMinutes ?? 0) > threshold);
 };
 
-attendanceDataSchema.statics.getMonthlyLateTrendPerEmployee = function (
-  empId: string | Types.ObjectId
-) {
+attendanceDataSchema.statics.getMonthlyLateTrendPerEmployee = function (empId: string | Types.ObjectId) {
   const _id = typeof empId === "string" ? new Types.ObjectId(empId) : empId;
   return this.aggregate([
     { $match: { "employeeInfo.empId": _id } },
@@ -266,7 +202,4 @@ export const DownloadAttendanceRawData = model<
   DownloadAttendanceRawDataModel
 >("AttendanceRawData", downloadAttendanceRawDataSchema);
 
-export const AttendanceData = model<TEmployeeAttendance, AttendanceDataModel>(
-  "AttendanceData",
-  attendanceDataSchema
-);
+export const AttendanceData = model<TEmployeeAttendance, AttendanceDataModel>("AttendanceData", attendanceDataSchema);

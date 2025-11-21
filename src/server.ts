@@ -1,14 +1,13 @@
-// src/server.ts
-import mongoose from "mongoose";
-import app from "./app";
-import config from "./app/config";
-import { Server } from "http";
+import { Server } from 'http';
+import app from './app';
+import config from './app/config';
+import connectDB from './db';
 
 let server: Server;
 
 async function main() {
   try {
-    await mongoose.connect(config.database_url as string);
+    await connectDB();
     server = app.listen(config.port, () => {
       console.log(`HRM_V2.0 Server is running on port ${config.port}`);
     });
@@ -18,15 +17,18 @@ async function main() {
   }
 }
 
-main();
+// Only start HTTP server when not on Vercel
+if (!process.env.VERCEL) {
+  main();
+}
 
-process.on("unhandledRejection", (reason) => {
-  console.error(`UnhandledRejection:`, reason);
+process.on('unhandledRejection', (reason) => {
+  console.error('UnhandledRejection:', reason);
   if (server) server.close(() => process.exit(1));
   else process.exit(1);
 });
 
-process.on("uncaughtException", (err) => {
-  console.error(`UncaughtException:`, err);
+process.on('uncaughtException', (err) => {
+  console.error('UncaughtException:', err);
   process.exit(1);
 });

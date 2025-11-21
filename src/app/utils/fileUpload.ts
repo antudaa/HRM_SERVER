@@ -8,7 +8,7 @@ export const uploadToCPanel = async (
 ): Promise<any> => {
     const client = new Client();
     client.ftp.verbose = true;
-    console.log(moduleFolder);
+    console.log("Inside Upload To CPanel Component => ", moduleFolder);
     try {
         await client.access({
             host: "ftp.hatechz.com",

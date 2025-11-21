@@ -125,7 +125,7 @@ export type TGeneralApplication = {
     fromDate: Date;
     toDate: Date;
     reason: string;
-    body: string;
+    body: any;
 
     attachments?: string[];
     relatedApplicationId?: Types.ObjectId;

@@ -31,7 +31,7 @@ import {
   DocumentFileUploadController,
   FileUploadController,
   NoticeFileUploadController,
-  ApplicationFileUploadController, // <-- NEW
+  ApplicationFileUploadController,
 } from "./FileUploadController";
 
 const router = express.Router();

@@ -8,7 +8,7 @@ import { JwtPayload } from "jsonwebtoken";
 import { USER_ROLE } from "../Employee/constant";
 import { Response } from "express";
 
-const roleMapping: { [key in USER_ROLE]: "SuperAdmin" | "Admin" | "Employee" | "HR" | "Manager" } = {
+export const roleMapping: { [key in USER_ROLE]: "SuperAdmin" | "Admin" | "Employee" | "HR" | "Manager" } = {
   [USER_ROLE.SuperAdmin]: "SuperAdmin",
   [USER_ROLE.Admin]: "Admin",
   [USER_ROLE.Employee]: "Employee",
@@ -39,15 +39,12 @@ const loginUser = async (payload: TLoginUser) => {
   const accessToken = createToken(
     jwtPayload,
     config.jwt_access_secret_token as string,
-    // if your config uses jwt_access_expires_time use that,
-    // fallback to existing key if needed
     (config as any).jwt_access_expires_time ?? config.jwt_refresh_expires_time
   );
 
   const refreshToken = createToken(
     jwtPayload,
-    // make sure this is the refresh secret (typo was "refrest")
-    (config as any).jwt_refresh_secret_token ?? config.jwt_access_refrest_secret_token,
+    (config as any).jwt_refresh_secret_token ?? config.jwt_refresh_secret_token,
     (config as any).jwt_refresh_expires_time ?? config.jwt_refresh_expires_time
   );
 

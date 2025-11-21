@@ -169,9 +169,9 @@ const createSuperAdminIntoDB = async (
     throw err instanceof AppError
       ? err
       : new AppError(
-          httpStatus.INTERNAL_SERVER_ERROR,
-          err.message || "Error creating super admin."
-        );
+        httpStatus.INTERNAL_SERVER_ERROR,
+        err.message || "Error creating super admin."
+      );
   } finally {
     await session.endSession();
   }
@@ -254,9 +254,9 @@ const createAdminIntoDB = async (
     throw err instanceof AppError
       ? err
       : new AppError(
-          httpStatus.INTERNAL_SERVER_ERROR,
-          err.message || "Error creating admin."
-        );
+        httpStatus.INTERNAL_SERVER_ERROR,
+        err.message || "Error creating admin."
+      );
   } finally {
     await session.endSession();
   }
@@ -315,9 +315,9 @@ const createEmployeeIntoDB = async (
     throw err instanceof AppError
       ? err
       : new AppError(
-          httpStatus.INTERNAL_SERVER_ERROR,
-          err.message || "Error creating employee."
-        );
+        httpStatus.INTERNAL_SERVER_ERROR,
+        err.message || "Error creating employee."
+      );
   } finally {
     await session.endSession();
   }
@@ -352,6 +352,13 @@ const getCurrentUser = async (userId: string | Types.ObjectId) => {
 const getAllUser = async () => {
   return User.find()
     .populate("employeeId")
+    .populate({
+      path: "employeeId",
+      populate: [
+        { path: "companyDetails.department.id", model: "Department" },
+        { path: "companyDetails.designation.id", model: "Designation" },
+      ],
+    })
     .populate("superAdminId")
     .populate("adminId")
     .lean();
@@ -410,9 +417,9 @@ const deleteUser = async (id: string) => {
     throw err instanceof AppError
       ? err
       : new AppError(
-          httpStatus.INTERNAL_SERVER_ERROR,
-          err.message || "Error deleting user."
-        );
+        httpStatus.INTERNAL_SERVER_ERROR,
+        err.message || "Error deleting user."
+      );
   } finally {
     await session.endSession();
   }

@@ -222,7 +222,7 @@ async function deriveApprovers(
 
 async function createApplication(payload: TCreateApplicationPayload) {
   ensureBodyOrTemplate(payload);
-
+// console.log(payload);
   const status: ApplicationStatus = payload.currentStatus ?? "pending";
   const now = new Date();
 

@@ -9,40 +9,6 @@ import { TUserRole } from "../modules/User/user.interface";
 import { User } from "../modules/User/user.model";
 import { USER_ROLE } from "../modules/Employee/constant";
 
-// const authenticateUser = (req: Request, res: Response, next: NextFunction) => {
-//     const token = req.header("Authorization")?.replace("Bearer ", "");
-
-//     // checking if the token is missing
-//     if (!token) {
-//         return sendResponse(res, {
-//             success: false,
-//             statusCode: httpStatus.UNAUTHORIZED,
-//             message: "Authorization token missing",
-//         });
-//     }
-
-//     try {
-//         // checking if the given token is valid
-//         const decoded = jwt.verify(
-//             token,
-//             config.jwt_access_secret_token as string,
-//         ) as JwtPayload;
-
-//         // Attach user id and role to request object
-//         (req as any).userId = decoded.userId;
-//         (req as any).role = decoded.role;
-//         next();
-//     } catch (error) {
-//         console.log(error);
-//         sendResponse(res, {
-//             success: false,
-//             statusCode: httpStatus.FORBIDDEN,
-//             message: "Invalid token!",
-//         });
-//     }
-// };
-
-
 const authenticateUser = (req: Request, res: Response, next: NextFunction) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
 
@@ -66,7 +32,7 @@ const authenticateUser = (req: Request, res: Response, next: NextFunction) => {
 
     // ✅ Add a normalized req.user that controllers can rely on
     (req as any).user = {
-      _id: decoded.userId || decoded.id,              // prefer userId, fallback id
+      _id: decoded.userId || decoded.id,
       id: decoded.userId || decoded.id,
       role: decoded.role,
       email: (decoded as any).email || (decoded as any).userEmail,
@@ -205,7 +171,7 @@ const auth = (...requiredRoles: TUserRole[]) => {
             );
         }
 
-        req.user = decoded as JwtPayload & { role: string };
+        // req.user = decoded as JwtPayload & { role: string };
         next();
     });
 };

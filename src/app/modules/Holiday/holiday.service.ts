@@ -54,7 +54,8 @@ const createHoliday = async (payload: {
 };
 
 const listHolidays = async () => {
-  return Holiday.find().sort({ startDate: 1, name: 1 });
+  return Holiday.find();
+  // return Holiday.find().sort({ startDate: 1, name: 1 });
 };
 
 const listActiveHolidays = async () => {

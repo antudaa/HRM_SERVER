@@ -1,8 +1,6 @@
-// src/app/modules/holiday/holiday.controller.ts
 import { Request, Response, NextFunction } from "express";
 import httpStatus from "http-status";
 import sendResponse from "../../utils/sendResponse";
-import AppError from "../../Errors/AppError";
 import { HolidayServices } from "./holiday.service";
 import { createHolidaySchema, updateHolidaySchema, rangeQuerySchema, bulkHolidaysSchema } from "./holiday.validation";
 import { buildHolidayTemplate, parseHolidaySheetToJson } from "./holiday.excel";
@@ -41,6 +39,7 @@ const listHolidays = async (_req: Request, res: Response, next: NextFunction) =>
       data: rows,
     });
   } catch (e) {
+    console.log(e);
     next(e);
   }
 };

@@ -151,6 +151,7 @@ export const NoticeFileUploadController = [
     const ext = file.originalname.split(".").pop()!;
     const fileName = generateNoticeFileName(noticeTitle, category, noticeType, ext, departmentName);
     const publicUrl = await uploadToCPanel(file.buffer, fileName, module);
+
     return res.status(200).json({ message: "Notice file uploaded successfully", fileUrl: publicUrl });
   }),
 ];
@@ -159,27 +160,52 @@ export const NoticeFileUploadController = [
 export const ApplicationFileUploadController = [
   upload.single("file"),
   catchAsync(async (req: Request, res: Response) => {
-    const file = req.file;
-    const { applicantName, applicationType, module } = req.body;
+    try {
+      const file = req.file;
+      const { applicantName, applicationType, module } = req.body || {};
 
-    if (!file || !applicantName || !applicationType || !module) {
-      return res.status(400).json({
-        message: "Missing file, applicantName, applicationType, or module",
+      if (!file || !applicantName || !applicationType || !module) {
+        return res.status(400).json({
+          ok: false,
+          message: "Missing file, applicantName, applicationType, or module",
+        });
+      }
+
+      const ext = (file.originalname.split(".").pop() || "").toLowerCase();
+      const fileName = generateApplicationFileName(
+        String(applicantName),
+        String(applicationType),
+        ext,
+        file.originalname
+      );
+
+      const result = await uploadToCPanel(file.buffer, fileName, module);
+      // Be tolerant to different return shapes
+      const publicUrl =
+        typeof result === "string"
+          ? result
+          : (result?.fileUrl || result?.url || result?.path || "");
+
+      if (!publicUrl) {
+        console.error("uploadToCPanel returned invalid result:", result);
+        return res.status(500).json({
+          ok: false,
+          message: "Upload to cPanel succeeded but no URL was returned",
+        });
+      }
+
+      console.log("Uploaded Application Attachment URL:", publicUrl);
+      return res.status(200).json({
+        ok: true,
+        message: "Application attachment uploaded successfully",
+        fileUrl: publicUrl,
+      });
+    } catch (err: any) {
+      console.error("Application attachment upload error:", err);
+      return res.status(500).json({
+        ok: false,
+        message: err?.message || "Upload failed",
       });
     }
-
-    const ext = file.originalname.split(".").pop()!;
-    const fileName = generateApplicationFileName(
-      String(applicantName),
-      String(applicationType),
-      ext,
-      file.originalname
-    );
-
-    const publicUrl = await uploadToCPanel(file.buffer, fileName, module);
-    return res.status(200).json({
-      message: "Application attachment uploaded successfully",
-      fileUrl: publicUrl,
-    });
   }),
 ];
